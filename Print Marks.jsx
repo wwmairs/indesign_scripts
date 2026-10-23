@@ -39,7 +39,8 @@ function myDisplayDialog(){
 					staticTexts.add({staticLabel:"Add Marks To:"});
 					var myRangeButtons = radiobuttonGroups.add();
 					with(myRangeButtons){
-						radiobuttonControls.add({staticLabel:"Odd Pages", checkedState:true})
+						radiobuttonControls.add({staticLabel:"Selected Frame"});
+						radiobuttonControls.add({staticLabel:"Odd Pages", checkedState:true});
 						radiobuttonControls.add({staticLabel:"Even Pages"});
 						radiobuttonControls.add({staticLabel:"All Pages"});
 						radiobuttonControls.add({staticLabel:"Folded Eights"});
@@ -180,37 +181,60 @@ function myDrawCollationMarks(myX1, myY1, myX2, myY2, myCollationMarkWidth, myPa
 	var pageInterval = 2 
 	var pageAdjust = 0;
     var x = (myX2 - myX1) / 2;
+    var y1 = myY1;
+    var y2 = myY2;
+    var x1 = myX1;
+    var x2 = myX2;
 	var length;
+	var allowedSelectedObjects = "Rectangle Oval Polygon GraphicLine Group TextFrame";
 
 	switch(myPageRange){
 		case 0:
+			// selected object
+			if (app.selection.length > 0 && 
+				allowedSelectedObjects.indexOf(app.selection[0].constructor.name) > -1) {
+
+				var selectedObject = app.activeDocument.selection[0];
+				var selectedBounds = selectedObject.visibleBounds;
+				alert(selectedBounds);
+				y1 = selectedBounds[0];
+				y2 = selectedBounds[2];
+				x1 = selectedBounds[1];
+				x2 = selectedBounds[3];
+				x = (selectedBounds[3] - selectedBounds[1]) / 2;
+				break;	
+			} else {
+				alert("Please select a page item and try again");
+				exit();
+			}
+		case 1:
 			// rectos 
 			break;
-		case 1:
+		case 2:
 			// versos 
 			pageAdjust = 1;
 			break;
-		case 2:
+		case 3:
 			// all pages
 			numBars = app.activeDocument.pages.length;
 			pageInterval = 1;
 			break;
-		case 3:
+		case 4:
 			// folded 8s
-			myY2 = myY2 / 2;
+			y2 = y2 / 2;
 			break;
 	}
 
 
-    length = (myY2 - myY1) / numBars;
+    length = (y2 - y1) / numBars;
 
 	for(var i = 0; i < numBars; i++){
         app.activeDocument.pages.item(i * pageInterval + pageAdjust).select();
         
-        var y1 = i * length;
-        var y2 = (i + 1) * length;
-
-		myDrawLine([y1, x, y2, x], myCollationMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
+        var barY1 = i * length + y1;
+        var barY2 = (i + 1) * length + y1;
+        var barX = x + x1;
+		myDrawLine([barY1, barX, barY2, barX], myCollationMarkWidth, myRegistrationColor, myNoneSwatch, myLayer);
     }
 }
 
