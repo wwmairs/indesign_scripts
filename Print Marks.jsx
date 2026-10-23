@@ -27,6 +27,14 @@ function myDisplayDialog(){
 			var myCollationMarksGroup = enablingGroups.add({staticLabel:"Collation Marks", checkedState:true});
 			with(myCollationMarksGroup){
 				with(borderPanels.add()){
+					var areaBoundsButtons = radiobuttonGroups.add();
+					with(areaBoundsButtons){
+						radiobuttonControls.add({staticLabel:"Selected Frame", checkedState:true});
+						radiobuttonControls.add({staticLabel:"Whole page"});
+						radiobuttonControls.add({staticLabel:"Margins"});
+					}
+				}
+				with(borderPanels.add()){
 					with(dialogColumns.add()){
 						staticTexts.add({staticLabel:"Stroke width:"});
 					}
@@ -39,7 +47,6 @@ function myDisplayDialog(){
 					staticTexts.add({staticLabel:"Add Marks To:"});
 					var myRangeButtons = radiobuttonGroups.add();
 					with(myRangeButtons){
-						radiobuttonControls.add({staticLabel:"Selected Frame"});
 						radiobuttonControls.add({staticLabel:"Odd Pages", checkedState:true});
 						radiobuttonControls.add({staticLabel:"Even Pages"});
 						radiobuttonControls.add({staticLabel:"All Pages"});
@@ -48,7 +55,7 @@ function myDisplayDialog(){
 				}
 			}
 
-			var labelsGroup = enablingGroups.add({staticLabel:"Press Sheet Labels", checkedState:true});
+			var labelsGroup = enablingGroups.add({staticLabel:"Press Sheet Labels", checkedState:false});
 			with(labelsGroup){
 				with(borderPanels.add()){
 					with(dialogColumns.add()){
@@ -80,10 +87,11 @@ function myDisplayDialog(){
 		var mySwatchColorIndex = swatchColorDropdown.selectedIndex;
 		var doLabels = labelsGroup.checkedState;
 		var labelPointSize = labelsPointSizeField.editValue;
+		var areaBoundsRange = areaBoundsButtons.selectedButton
 		myDialog.destroy();
 		//"||" is logical OR in JavaScript.
 		if (((myDoCollationMarks != false || doLabels != false) && mySwatchColorIndex != -1)){
-			myDrawPrintersMarks(myPageRange, myDoCollationMarks, myCollationMarkWidth, mySwatchColorIndex, doLabels, labelPointSize);
+			myDrawPrintersMarks(areaBoundsRange, myPageRange, myDoCollationMarks, myCollationMarkWidth, mySwatchColorIndex, doLabels, labelPointSize);
 		}
 		else{
 			alert("No printers marks were selected.");
@@ -93,8 +101,9 @@ function myDisplayDialog(){
 		myDialog.destroy();
 	}
 }
-function myDrawPrintersMarks(myPageRange, myDoCollationMarks, myCollationMarkWidth, mySwatchColorIndex, doLabels, labelPointSize){
+function myDrawPrintersMarks(areaBoundsRange, myPageRange, myDoCollationMarks, myCollationMarkWidth, mySwatchColorIndex, doLabels, labelPointSize){
 	var myBounds, myX1, myY1, myX2, myY2, myObject;
+	var allowedSelectedObjects = "Rectangle Oval Polygon GraphicLine Group TextFrame";
 	var myDocument = app.activeDocument;
 	var myOldRulerOrigin = myDocument.viewPreferences.rulerOrigin;
 	myDocument.viewPreferences.rulerOrigin = RulerOrigin.spreadOrigin;
@@ -133,8 +142,40 @@ function myDrawPrintersMarks(myPageRange, myDoCollationMarks, myCollationMarkWid
 	var myRegistrationColor = myDocument.colors.item("Registration");
 	var myNoneSwatch = myDocument.swatches.item("None");
 	var mySelectedSwatch = myDocument.swatches[mySwatchColorIndex];
+	
+	// figure out bounds for collation marks
+	switch(areaBoundsRange) {
+		case 0:
+			// selected object
+			if (app.selection.length > 0 && 
+				allowedSelectedObjects.indexOf(app.selection[0].constructor.name) > -1) {
+				myBounds = app.activeDocument.selection[0].visibleBounds;
+				break;	
+			} else {
+				alert("Please select a page item and try again");
+				exit();
+			}
+			break;
+		case 1:
+			// whole page
+			myBounds = myDocument.pages[0].bounds;
+			break;
+		case 2:
+			// margins
+			var myPage = app.activeDocument.pages.item(0);
+			var myMarginPreferences = myPage.marginPreferences; 
+			var myLeftMargin = myMarginPreferences.left;  
+			var myTopMargin = myMarginPreferences.top;  
+			var myRightMargin = myMarginPreferences.right;  
+			var myBottomMargin = myMarginPreferences.bottom;
+			myBounds = myDocument.pages[0].bounds;
+			myBounds[0] += myTopMargin;
+			myBounds[1] += myLeftMargin;
+			myBounds[2] -= myBottomMargin;
+			myBounds[3] -= myRightMargin;
+			break;
+	}
 
-	myBounds = myDocument.pages[0].bounds;
 	if (myDoCollationMarks) {
 		myDrawCollationMarks(myBounds[1], myBounds[0], myBounds[3], myBounds[2], myCollationMarkWidth, myPageRange, mySelectedSwatch, myNoneSwatch, myLayer);	
 	}
@@ -186,40 +227,21 @@ function myDrawCollationMarks(myX1, myY1, myX2, myY2, myCollationMarkWidth, myPa
     var x1 = myX1;
     var x2 = myX2;
 	var length;
-	var allowedSelectedObjects = "Rectangle Oval Polygon GraphicLine Group TextFrame";
 
 	switch(myPageRange){
 		case 0:
-			// selected object
-			if (app.selection.length > 0 && 
-				allowedSelectedObjects.indexOf(app.selection[0].constructor.name) > -1) {
-
-				var selectedObject = app.activeDocument.selection[0];
-				var selectedBounds = selectedObject.visibleBounds;
-				alert(selectedBounds);
-				y1 = selectedBounds[0];
-				y2 = selectedBounds[2];
-				x1 = selectedBounds[1];
-				x2 = selectedBounds[3];
-				x = (selectedBounds[3] - selectedBounds[1]) / 2;
-				break;	
-			} else {
-				alert("Please select a page item and try again");
-				exit();
-			}
-		case 1:
 			// rectos 
 			break;
-		case 2:
+		case 1:
 			// versos 
 			pageAdjust = 1;
 			break;
-		case 3:
+		case 2:
 			// all pages
 			numBars = app.activeDocument.pages.length;
 			pageInterval = 1;
 			break;
-		case 4:
+		case 3:
 			// folded 8s
 			y2 = y2 / 2;
 			break;
